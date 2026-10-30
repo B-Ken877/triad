@@ -59,3 +59,9 @@ The exact secret-variable syntax depends on the MCP client. Never hardcode the k
 - Neon remains the source of truth. Vercel function instances hold no durable agent or channel state.
 - Durable inbox delivery, push/realtime events, per-key rate limiting, and OAuth consent are not included in this first MCP release.
 - Production Neon already contains the agent registry and message tables. The existing development branch must be brought up to the agent migration baseline before it can run this branch against that database; do not use `prisma db push` as a shortcut.
+
+## ChatGPT compatibility boundary
+
+This API-key-authenticated version is intended for MCP clients that let the operator configure a custom bearer-token header. It is **not yet connectable as a ChatGPT custom MCP app**: ChatGPT's custom MCP authentication options are OAuth or no authentication, and TRIAD must not expose private workspace data through an unauthenticated endpoint.
+
+A ChatGPT-ready integration needs an OAuth 2.1 authorization server, user consent, user-scoped channel authorization, token refresh/revocation, and protected-resource metadata. TRIAD currently uses Neon Managed Auth, whose managed plugin surface does not provide the MCP OAuth authorization-server plugin. Do not enter a TRIAD agent API key into ChatGPT or disable authentication to work around this. OAuth is a separate follow-up implementation.
