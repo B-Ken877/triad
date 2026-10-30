@@ -116,7 +116,7 @@ durably accepted), and retry/backoff with dead-letter visibility.
 | --- | --- | --- |
 | 1 | Repository foundation: scaffold, gates, env example, architecture docs | Done (merged via PR #2) |
 | 2 | Medika chat extraction: domain-neutral UI + reliability utilities with tests | Delivered via the Phase 2 PR (receipts/typing/presence/scroll/timeline utilities, attachment-retry contract fix, chat UI foundations with component tests) |
-| 3 | Workspace MVP: auth, founder workspace, channel CRUD, membership, channel chat | Pending |
+| 3 | Workspace MVP: auth, founder workspace, channel CRUD, membership, channel chat | In progress |
 | 4 | Reliable messaging: durable persistence, idempotency, pagination, receipts, presence | Pending — server-side persistence and pagination; the client-side contracts above are ready to bind to it |
 | 5 | Project records: append-only events, canonical Markdown, versioning, onboarding | Pending |
 | 6 | Agent API: registry, scoped credentials, inbox leases, heartbeat, revocation | Pending |
@@ -134,3 +134,16 @@ durably accepted), and retry/backoff with dead-letter visibility.
   MVP designs the data model with migrations.
 - Presence/typing TTLs and thresholds are constants at the call site; tuning and server-side
   enforcement arrive with the messaging phases.
+
+
+## Phase 3 implementation notes
+
+- Neon Managed Auth (Better Auth) is the identity provider. The app uses a same-origin allow-listed proxy for email sign-in, sign-up, sign-out and session lookup; password handling and session validation remain upstream.
+- \`User\` mirrors the stable auth user ID, email and display name. Passwords and auth sessions are never stored in TRIAD tables.
+- A \`Workspace\` has one owner and memberships with \`OWNER\`, \`ADMIN\`, or \`MEMBER\` roles. Project channels are workspace-scoped and have explicit \`OWNER\`, \`MODERATOR\`, or \`MEMBER\` membership.
+- Message ordering is deterministic by \`(createdAt, id)\`; the nullable \`(senderId, clientMsgId)\` unique key reserves client identity for Phase 4 idempotency.
+- Channel reads/writes require both workspace membership and explicit channel membership. Metadata edits require channel OWNER/MODERATOR; archiving requires OWNER. The client never supplies trusted roles.
+- Development schema validation uses the isolated TRIAD Neon branch \`triad-phase3-dev\`; production database changes remain separate and require explicit approval.
+- Initial UI supports project creation, rename, archive and persisted conversation. Workspace/channel member administration is exposed through authenticated APIs; a member-management UI remains a follow-up.
+- Phase 3 currently caps message history at 100 rows. Cursor pagination, server-side idempotent retries, receipts, presence and realtime transport remain Phase 4.
+- Neon Auth trusted origins, email verification and production custom SMTP must be verified before broad beta access.
