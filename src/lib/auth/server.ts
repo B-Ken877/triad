@@ -5,7 +5,7 @@ interface AuthPayload {
   data?: { user?: { id?: unknown; email?: unknown; name?: unknown } };
 }
 export function getNeonAuthBaseUrl(): URL {
-  const configured = process.env.NEON_AUTH_BASE_URL;
+  const configured = process.env.NEON_AUTH_BASE_URL ?? process.env.DATABASE_NEON_AUTH_BASE_URL;
   if (!configured) throw new Error("NEON_AUTH_BASE_URL is not configured.");
   const url = new URL(configured);
   if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash ||
