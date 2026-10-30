@@ -76,6 +76,7 @@ model Channel {
   createdBy     User            @relation("ChannelCreator", fields: [createdById], references: [id], onDelete: Restrict)
   members       ChannelMember[]
   messages      Message[]
+  agentMessages AgentMessage[]
   agentAccess   AgentChannel[]
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
@@ -120,6 +121,7 @@ model Agent {
   createdBy   User         @relation("AgentCreator", fields: [createdById], references: [id], onDelete: Restrict)
   keys        AgentApiKey[]
   channels    AgentChannel[]
+  messages    AgentMessage[]
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
   @@index([workspaceId, status, createdAt])
@@ -148,4 +150,18 @@ model AgentChannel {
   channel   Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
   @@unique([agentId, channelId])
   @@index([channelId])
+}
+
+model AgentMessage {
+  id            String   @id @default(cuid())
+  channelId     String
+  agentId       String
+  clientMsgId   String   @db.VarChar(128)
+  body          String   @db.Text
+  createdAt     DateTime @default(now())
+  channel       Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  agent         Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  @@unique([agentId, clientMsgId])
+  @@index([channelId, createdAt, id])
+  @@index([agentId, createdAt])
 }
