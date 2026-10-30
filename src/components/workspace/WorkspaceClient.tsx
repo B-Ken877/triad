@@ -102,7 +102,7 @@ export function WorkspaceClient({ workspace, user }: {
         method: "POST", body: JSON.stringify({ name }),
       });
       setChannels(current => [{ ...data.channel, role: "OWNER" }, ...current]);
-      setListStatus("loading"); setListStatus("loading"); setActiveId(data.channel.id); setNewName("");
+      setListStatus("loading"); setActiveId(data.channel.id); setNewName("");
     } catch (error) {
       setChannelError(error instanceof Error ? error.message : "Unable to create the project.");
     } finally { setCreating(false); }
