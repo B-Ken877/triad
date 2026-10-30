@@ -31,7 +31,7 @@ describe("Neon Auth same-origin proxy", () => {
     const response = await POST(request, { params: Promise.resolve({ path: ["sign-in", "email"] }) });
     expect(response.status).toBe(200);
     expect(fetchMock).toHaveBeenCalledOnce();
-    expect(String(fetchMock.mock.calls[0][0])).toBe("https://auth.neonauth.us-east-1.aws.neon.tech/neondb/auth/sign-in/email");
+    expect(String(fetchMock.mock.calls[0]?.[0])).toBe("https://auth.neonauth.us-east-1.aws.neon.tech/neondb/auth/sign-in/email");
     vi.unstubAllGlobals();
   });
 });
