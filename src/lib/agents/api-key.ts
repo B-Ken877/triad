@@ -14,7 +14,9 @@ export async function authenticateAgent(request: Request) {
   const authorization = request.headers.get("authorization") ?? "";
   const match = /^Bearer (trd_live_[A-Za-z0-9_-]{32,})$/.exec(authorization);
   if (!match) return null;
-  const keyHash = hashAgentApiKey(match[1]);
+  const token = match[1];
+  if (!token) return null;
+  const keyHash = hashAgentApiKey(token);
   const key = await db.agentApiKey.findUnique({
     where: { keyHash },
     include: { agent: { include: { channels: { select: { channelId: true } } } } },
