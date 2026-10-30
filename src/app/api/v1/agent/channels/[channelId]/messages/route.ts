@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 import { authenticateAgent } from "@/lib/agents/api-key";
 import { db } from "@/lib/db";
 import { apiError, isPrismaUniqueError, readJsonObject } from "@/lib/http";
@@ -58,17 +59,25 @@ export async function GET(request: Request, context: Context) {
     });
     if (!channel) return apiError("Channel not found or access denied.", 404);
 
-    const afterHuman = cursor
-      ? { OR: [
-          { createdAt: { gt: new Date(cursor.createdAt) } },
-          ...(cursor.kind === "human" ? [{ createdAt: new Date(cursor.createdAt), id: { gt: cursor.id } }] : []),
-        ] }
+    const cursorDate = cursor ? new Date(cursor.createdAt) : null;
+    const afterHuman: Prisma.MessageWhereInput = cursor && cursorDate
+      ? {
+          OR: [
+            { createdAt: { gt: cursorDate } },
+            ...(cursor.kind === "human" ? [{ createdAt: { equals: cursorDate }, id: { gt: cursor.id } }] : []),
+          ],
+        }
       : {};
-    const afterAgent = cursor
-      ? { OR: [
-          { createdAt: { gt: new Date(cursor.createdAt) } },
-          { createdAt: new Date(cursor.createdAt), ...(cursor.kind === "human" ? {} : { id: { gt: cursor.id } }) },
-        ] }
+    const afterAgent: Prisma.AgentMessageWhereInput = cursor && cursorDate
+      ? {
+          OR: [
+            { createdAt: { gt: cursorDate } },
+            {
+              createdAt: { equals: cursorDate },
+              ...(cursor.kind === "human" ? {} : { id: { gt: cursor.id } }),
+            },
+          ],
+        }
       : {};
 
     const [humanMessages, agentMessages] = await Promise.all([
