@@ -74,3 +74,7 @@ Durable inbox delivery, realtime event delivery, request rate limiting, and broa
 ## Database
 
 Apply the additive migrations `20261030180000_agent_registry_api_keys` and `20261030190000_agent_messages` to the isolated TRIAD development Neon branch first. Do not use `prisma db push`. Production migration must wait for an explicit release decision and a verified migration-state check.
+
+## MCP server
+
+See [MCP_SERVER.md](./MCP_SERVER.md) for the remote MCP endpoint, bearer-token authentication, available tools, and client configuration.
