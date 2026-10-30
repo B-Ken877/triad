@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Composer } from "@/components/chat/Composer";
 import { MessageList } from "@/components/chat/MessageList";
@@ -45,21 +45,41 @@ export function WorkspaceClient({ workspace, user }: {
   const [pending, setPending] = useState<Record<string, PendingBody>>({});
   const activeChannel = useMemo(() => channels.find(channel => channel.id === activeId) ?? null, [channels, activeId]);
 
-  const loadChannels = useCallback(async () => {
-    try {
-      const data = await requestJson<{ channels: Channel[] }>("/api/workspaces/" + workspace.id + "/channels");
-      setChannels(data.channels);
-      if (!data.channels.some(channel => channel.id === activeId)) {
-        setListStatus("loading");
-        setActiveId(data.channels[0]?.id ?? "");
-      }
-      setChannelError("");
-    } catch (error) {
-      setChannelError(error instanceof Error ? error.message : "Unable to load channels.");
-    } finally { setLoadingChannels(false); }
-  }, [workspace.id, activeId]);
+  useEffect(() => {
+    let cancelled = false;
+    void requestJson<{ channels: Channel[] }>("/api/workspaces/" + workspace.id + "/channels")
+      .then(data => {
+        if (cancelled) return;
+        setChannels(data.channels);
+        setActiveId(current => data.channels.some(channel => channel.id === current) ? current : data.channels[0]?.id ?? "");
+        setChannelError("");
+      })
+      .catch(error => {
+        if (!cancelled) setChannelError(error instanceof Error ? error.message : "Unable to load channels.");
+      })
+      .finally(() => { if (!cancelled) setLoadingChannels(false); });
+    return () => { cancelled = true; };
+  }, [workspace.id]);
 
-  const fetchMessages = useCallback(async (channelId: string) => {
+  useEffect(() => {
+    if (!activeId) return;
+    let cancelled = false;
+    void requestJson<{ messages: PersistedMessage[] }>("/api/channels/" + activeId + "/messages")
+      .then(data => {
+        if (cancelled) return;
+        setMessages(data.messages.map(message => mapMessage(message, user.id)));
+        setListStatus("ready"); setPending({}); setSendError("");
+      })
+      .catch(error => {
+        if (cancelled) return;
+        setListStatus("error");
+        setSendError(error instanceof Error ? error.message : "Unable to load messages.");
+      });
+    return () => { cancelled = true; };
+  }, [activeId, user.id]);
+
+  async function reloadMessages(channelId: string) {
+    setListStatus("loading"); setSendError("");
     try {
       const data = await requestJson<{ messages: PersistedMessage[] }>("/api/channels/" + channelId + "/messages");
       setMessages(data.messages.map(message => mapMessage(message, user.id)));
@@ -68,17 +88,7 @@ export function WorkspaceClient({ workspace, user }: {
       setListStatus("error");
       setSendError(error instanceof Error ? error.message : "Unable to load messages.");
     }
-  }, [user.id]);
-
-  const reloadMessages = useCallback((channelId: string) => {
-    setListStatus("loading"); setSendError("");
-    void fetchMessages(channelId);
-  }, [fetchMessages]);
-
-  useEffect(() => { void loadChannels(); }, [loadChannels]);
-  useEffect(() => {
-    if (activeId) void fetchMessages(activeId);
-  }, [activeId, fetchMessages]);
+  }
 
   async function createChannel(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
