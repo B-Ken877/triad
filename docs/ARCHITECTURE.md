@@ -15,22 +15,35 @@ policy, durable project record, task/decision history and activity feed. Project
 to TRIAD, not to any individual agent: agents are replaceable and onboard from the current record
 plus authorized history.
 
-## 2. Repository layout (Phase 1)
+## 2. Repository layout (Phase 2)
 
 ```
 src/app/            Next.js App Router (UI + route handlers in later phases)
 src/lib/            Domain-neutral libraries, framework-free where possible
-  lib/chat/           Messaging reliability primitives (pending state machine, reconciliation)
+  lib/chat/           Messaging reliability primitives
+                      pending.ts        optimistic pending state machine
+                      reconcile.ts      persisted-echo wait + duplicate-free merge
+                      client-msg-id.ts  one id per logical send
+                      receipts.ts       read-receipt derivation from persisted markers
+                      typing.ts         typing throttle/expiry/disconnect tracking
+                      presence.ts       heartbeat presence/last-seen derivation
+                      scroll.ts         pure scroll math (stick/prepend-anchor/resize)
+                      timeline.ts       deterministic ordering + day grouping
+src/components/chat/  Reusable chat UI foundations (bubble, list, composer,
+                      status surfaces, typing indicator, scroll hook)
 prisma/             Schema + migrations (models arrive with the Workspace MVP phase)
 docs/               Architecture and migration documentation
 reference/          Read-only Medika chat audit snapshots — NEVER imported by app code
+tests/              Vitest setup (jest-dom matchers)
 ```
 
 Rules:
 
-- `reference/**` is excluded from lint/format and must never be imported by `src/`. It preserves
-  the audited Medika logic so adaptation stays traceable.
+- `reference/**` is excluded from lint/format/typecheck and must never be imported by `src/`. It
+  preserves the audited Medika logic so adaptation stays traceable.
 - Application code depends on explicit TRIAD domain types, not on Medika types.
+- Reliability utilities are pure or dependency-injected (clock, subscribe fn, formatters) so they
+  are testable without a browser and transport-agnostic.
 
 ## 3. Stack
 
@@ -60,6 +73,27 @@ messaging contract:
    functions with focused unit tests — ported from `reference/medika-chat/` with consultation,
    calling and medical concepts removed.
 
+   **Attachment retry contract (issue #3):** an attachment entry is retryable when the send frame
+   can be reconstructed without re-asking the user — i.e. the in-memory `fileRef` exists OR the
+   completed upload is referenced by `attachmentRef` (retry re-sends against the existing
+   attachment, never a second upload). With neither reference the payload is gone; the UI surfaces
+   the entry as failed for manual re-attach.
+
+5. **Receipts, typing and presence derive from persisted/heartbeat state with expiry:**
+   - Receipts (`receipts.ts`): participants carry monotonic `lastDeliveredSeq`/`lastReadSeq`
+     markers; a sent message is `read` when every other participant read past it, `delivered`
+     when all durably received it, else `sent`. Markers never regress (stale/duplicate events are
+     ignored; read implies delivered).
+   - Typing (`typing.ts`): outbound signals are throttled to one per window; inbound states expire
+     by TTL, stale events never regress state, and a transport disconnect clears everything and
+     pins a staleness floor so pre-disconnect duplicates cannot resurrect indicators.
+   - Presence (`presence.ts`): `online` requires a heartbeat inside the online window (recent
+     authenticated activity, not mere registration); `lastSeen` never regresses; disconnect
+     derives offline immediately without fabricating timestamps.
+   - Scroll math (`scroll.ts`): bottom-stickiness, prepend anchoring for history pagination and
+     late-content-resize compensation are pure functions; `useChatScroll` only binds them to DOM
+     refs.
+
 Later phases extend this contract server-side: cursor pagination with stable ordering, inbox
 claim/lease/ack semantics for concurrent agent workers (a cursor never advances before work is
 durably accepted), and retry/backoff with dead-letter visibility.
@@ -80,19 +114,23 @@ durably accepted), and retry/backoff with dead-letter visibility.
 
 | Phase | Scope | Status |
 | --- | --- | --- |
-| 1 | Repository foundation: scaffold, gates, env example, architecture docs | Done (this document, scaffold, CI) |
-| 2 | Medika chat extraction: domain-neutral UI + reliability utilities with tests | Started (`src/lib/chat/`), continues next |
+| 1 | Repository foundation: scaffold, gates, env example, architecture docs | Done (merged via PR #2) |
+| 2 | Medika chat extraction: domain-neutral UI + reliability utilities with tests | Delivered via the Phase 2 PR (receipts/typing/presence/scroll/timeline utilities, attachment-retry contract fix, chat UI foundations with component tests) |
 | 3 | Workspace MVP: auth, founder workspace, channel CRUD, membership, channel chat | Pending |
-| 4 | Reliable messaging: durable persistence, idempotency, pagination, receipts, presence | Pending |
+| 4 | Reliable messaging: durable persistence, idempotency, pagination, receipts, presence | Pending — server-side persistence and pagination; the client-side contracts above are ready to bind to it |
 | 5 | Project records: append-only events, canonical Markdown, versioning, onboarding | Pending |
 | 6 | Agent API: registry, scoped credentials, inbox leases, heartbeat, revocation | Pending |
 | 7 | Integrations: provider adapters, external-agent onboarding | Pending |
 | 8 | Hardening and deployment: security/concurrency tests, observability, Vercel + Neon | Pending |
 
-## 7. Known limitations (Phase 1)
+## 7. Known limitations (Phase 2)
 
-- No application features yet: home page is a static status page.
-- Prisma schema has no models by design; the data model lands with the Workspace MVP phase.
-- No auth, no realtime transport, no storage adapter yet.
-- CI runs lint/typecheck/tests/build; integration tests against a real Postgres arrive with the
-  data model (Phase 3).
+- The chat UI foundations are not yet composed into a live channel page: no persistence, auth,
+  routes or realtime transport — intentionally deferred to phases 3–4.
+- Component tests run under jsdom, which implements no layout engine: scroll geometry behaviors
+  are covered as pure functions in `lib/chat/scroll.ts` tests; `useChatScroll` DOM binding is
+  exercised only to the extent jsdom allows (scrollIntoView guarded).
+- No database schema yet; `prisma/schema.prisma` is a toolchain placeholder until the Workspace
+  MVP designs the data model with migrations.
+- Presence/typing TTLs and thresholds are constants at the call site; tuning and server-side
+  enforcement arrive with the messaging phases.
