@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, feat/agent-registry-api-keys]
   pull_request:
 
 jobs:
