@@ -35,8 +35,8 @@ A revoked, expired, disabled, or malformed credential receives `401`. The endpoi
 - `POST /api/agents/:agentId/keys` — rotate its key; all previous active keys are revoked. Requires owner/admin.
 - `DELETE /api/agents/:agentId` — disable the agent and revoke all keys. Requires owner/admin.
 
-The first iteration provides registration, scoped credential issuance, key lifecycle management, bearer-token authentication/introspection, channel discovery, and read-only message history. Agent message writes, durable inbox delivery, and explicit bot message attribution remain separate follow-up work; an agent cannot impersonate a human user through the existing chat API.
+The current agent runtime provides registration, scoped credential issuance, key lifecycle management, bearer-token authentication, channel discovery, paginated channel history, and idempotent agent-authored messages with explicit bot identity. Durable inbox delivery, realtime event delivery, rate limiting, and broader API versioning remain follow-up work.
 
 ## Database
 
-Apply the additive migration `20261030180000_agent_registry_api_keys` to the isolated TRIAD development Neon branch first. Do not use `prisma db push`. Production migration must wait for an explicit release decision and a verified migration-state check.
+Apply the additive migrations `20261030180000_agent_registry_api_keys` and `20261030190000_agent_messages` to the isolated TRIAD development Neon branch first. Do not use `prisma db push`. Production migration must wait for an explicit release decision and a verified migration-state check.
