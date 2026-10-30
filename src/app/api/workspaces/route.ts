@@ -13,7 +13,7 @@ export async function GET() {
       orderBy: { updatedAt: "desc" },
       select: { id: true, name: true, description: true, updatedAt: true },
     });
-    return NextResponse.json({ workspace: { id: workspace.id, name: workspace.name, role: "OWNER" }, channels }, { headers: { "cache-control": "no-store" } });
+    return NextResponse.json({ workspace: { id: workspace.id, name: workspace.name, role: workspace.members.find(member => member.userId === user.id)?.role ?? "MEMBER" }, channels }, { headers: { "cache-control": "no-store" } });
   } catch (error) {
     console.error("Workspace load failed:", error);
     return apiError("Unable to load the workspace. Please retry.", 500);

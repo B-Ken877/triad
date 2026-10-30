@@ -6,7 +6,7 @@ import { MessageList } from "@/components/chat/MessageList";
 import type { ChatMessageView, ChatListStatus } from "@/components/chat/types";
 import { newClientMsgId } from "@/lib/chat/client-msg-id";
 import { signOut } from "@/lib/auth/client";
-interface Channel { id: string; name: string; description: string | null; updatedAt: string }
+interface Channel { id: string; name: string; description: string | null; updatedAt: string; role: string }
 interface PersistedMessage {
   id: string; channelId: string; senderId: string; clientMsgId: string | null; body: string;
   createdAt: string; sender: { id: string; name: string | null; email: string };
@@ -29,7 +29,7 @@ function mapMessage(message: PersistedMessage, userId: string): ChatMessageView 
   };
 }
 export function WorkspaceClient({ workspace, user }: {
-  workspace: { id: string; name: string };
+  workspace: { id: string; name: string; role: string };
   user: { id: string; name: string | null; email: string };
 }) {
   const router = useRouter();
@@ -99,7 +99,7 @@ export function WorkspaceClient({ workspace, user }: {
       const data = await requestJson<{ channel: Channel }>("/api/workspaces/" + workspace.id + "/channels", {
         method: "POST", body: JSON.stringify({ name }),
       });
-      setChannels(current => [data.channel, ...current]);
+      setChannels(current => [{ ...data.channel, role: "OWNER" }, ...current]);
       setListStatus("loading"); setListStatus("loading"); setActiveId(data.channel.id); setNewName("");
     } catch (error) {
       setChannelError(error instanceof Error ? error.message : "Unable to create the project.");
@@ -180,18 +180,18 @@ export function WorkspaceClient({ workspace, user }: {
       <div className="flex min-h-0 flex-1">
         <aside className="flex w-64 shrink-0 flex-col border-r border-neutral-200 bg-white p-3 dark:border-neutral-800 dark:bg-neutral-900">
           <div className="mb-3 flex items-center justify-between px-1"><h1 className="text-sm font-semibold">Projects</h1><span className="text-xs text-neutral-400">{channels.length}</span></div>
-          <form onSubmit={createChannel} className="mb-4 space-y-2">
+          {["OWNER", "ADMIN"].includes(workspace.role) && <form onSubmit={createChannel} className="mb-4 space-y-2">
             <input value={newName} onChange={event => setNewName(event.target.value)} placeholder="New project name" maxLength={80} className="min-h-10 w-full rounded-lg border border-neutral-300 bg-transparent px-3 text-sm outline-none focus:border-emerald-700 dark:border-neutral-700" />
             <button disabled={creating || newName.trim().length < 2} className="min-h-9 w-full rounded-lg bg-emerald-700 px-3 text-xs font-semibold text-white disabled:opacity-50">{creating ? "Creating…" : "＋ Create project"}</button>
-          </form>
+          </form>}
           {channelError && <p role="alert" className="mb-3 rounded-lg bg-red-50 p-2 text-xs text-red-700 dark:bg-red-950/40 dark:text-red-300">{channelError}</p>}
           <nav aria-label="Project channels" className="min-h-0 flex-1 space-y-1 overflow-y-auto">
             {loadingChannels ? <p className="px-2 py-3 text-xs text-neutral-500">Loading projects…</p> :
               channels.length === 0 ? <p className="px-2 py-3 text-xs leading-5 text-neutral-500">No projects yet. Create one to start a conversation.</p> :
               channels.map(channel => <div key={channel.id} className={"group flex items-center rounded-lg " + (activeId === channel.id ? "bg-emerald-50 text-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-100" : "hover:bg-neutral-100 dark:hover:bg-neutral-800")}>
                 <button onClick={() => { if (activeId === channel.id) reloadMessages(channel.id); else { setListStatus("loading"); setActiveId(channel.id); } }} className="min-w-0 flex-1 truncate px-3 py-2.5 text-left text-sm font-medium"># {channel.name}</button>
-                <button title={"Rename " + channel.name} aria-label={"Rename " + channel.name} onClick={() => void renameChannel(channel)} className="rounded px-1.5 py-1 text-xs text-neutral-400 hover:bg-neutral-200 hover:text-neutral-800 dark:hover:bg-neutral-700">✎</button>
-                <button title={"Archive " + channel.name} aria-label={"Archive " + channel.name} onClick={() => void archiveChannel(channel)} className="mr-1 rounded px-1.5 py-1 text-xs text-neutral-400 hover:bg-neutral-200 hover:text-neutral-800 dark:hover:bg-neutral-700">…</button>
+                {["OWNER", "MODERATOR"].includes(channel.role) && <button title={"Rename " + channel.name} aria-label={"Rename " + channel.name} onClick={() => void renameChannel(channel)} className="rounded px-1.5 py-1 text-xs text-neutral-400 hover:bg-neutral-200 hover:text-neutral-800 dark:hover:bg-neutral-700">✎</button>}
+                {channel.role === "OWNER" && <button title={"Archive " + channel.name} aria-label={"Archive " + channel.name} onClick={() => void archiveChannel(channel)} className="mr-1 rounded px-1.5 py-1 text-xs text-neutral-400 hover:bg-neutral-200 hover:text-neutral-800 dark:hover:bg-neutral-700">…</button>}
               </div>)}
           </nav>
           <p className="mt-3 border-t border-neutral-200 px-2 pt-3 text-[11px] leading-4 text-neutral-400 dark:border-neutral-800">Private project channels. Access is checked on the server.</p>

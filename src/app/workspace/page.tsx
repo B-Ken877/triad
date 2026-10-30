@@ -16,5 +16,6 @@ export default async function WorkspacePage() {
     <h1 className="text-xl font-semibold">Workspace unavailable</h1>
     <p className="mt-2 text-sm text-neutral-500">TRIAD could not initialize your workspace. Check the database configuration and try again.</p>
   </section></main>;
-  return <WorkspaceClient workspace={{ id: workspace.id, name: workspace.name }} user={{ id: user.id, name: user.name, email: user.email }} />;
+  const role = workspace.members.find(member => member.userId === user.id)?.role ?? "MEMBER";
+  return <WorkspaceClient workspace={{ id: workspace.id, name: workspace.name, role }} user={{ id: user.id, name: user.name, email: user.email }} />;
 }
