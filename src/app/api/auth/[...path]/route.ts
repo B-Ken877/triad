@@ -14,10 +14,13 @@ async function proxyAuth(request: NextRequest, context: { params: Promise<{ path
   try {
     const base = getNeonAuthBaseUrl();
     const target = new URL(endpointPath, base.toString().replace(/\/$/, "") + "/");
+    // Match Neon's supported proxy contract: preserve the browser origin,
+    // but do not forward x-forwarded-host/proto. Those headers can override
+    // Better Auth's upstream hostname resolution and trigger "Invalid hostname header".
     const headers = new Headers({
-      accept: "application/json", origin: request.nextUrl.origin,
-      "x-forwarded-host": request.nextUrl.host,
-      "x-forwarded-proto": request.nextUrl.protocol.replace(":", ""),
+      accept: "application/json",
+      origin: request.headers.get("origin") ?? request.nextUrl.origin,
+      "x-neon-auth-middleware": "true",
     });
     const cookie = request.headers.get("cookie");
     const contentType = request.headers.get("content-type");
