@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 
 type Channel = { id: string; name: string };
 type Agent = {
@@ -27,7 +27,7 @@ export function AgentManager({ workspaceId }: { workspaceId: string }) {
   const [newKey, setNewKey] = useState("");
   const [keyNotice, setKeyNotice] = useState("");
 
-  async function refresh() {
+  const refresh = useCallback(async () => {
     const [agentData, channelData] = await Promise.all([
       api<{ agents: Agent[] }>("/api/workspaces/" + workspaceId + "/agents"),
       api<{ channels: Channel[] }>("/api/workspaces/" + workspaceId + "/channels"),
