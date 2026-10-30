@@ -81,7 +81,7 @@ export function AgentManager({ workspaceId }: { workspaceId: string }) {
     finally { setBusy(false); }
   }
 
-  return <div className="mx-auto w-full max-w-4xl space-y-6 p-4 sm:p-8">
+  return <div className="mx-auto min-h-0 w-full max-w-4xl flex-1 overflow-y-auto space-y-6 p-4 sm:p-8">
     <div><p className="text-xs font-semibold uppercase tracking-widest text-emerald-700">Integrations</p><h2 className="mt-1 text-2xl font-semibold">AI agents</h2><p className="mt-2 max-w-2xl text-sm text-neutral-500">Register independently hosted bots and give each one a dedicated credential with access limited to selected project channels.</p></div>
     {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
     {newKey && <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-950">
