@@ -6,10 +6,11 @@ import { MessageList } from "@/components/chat/MessageList";
 import type { ChatMessageView, ChatListStatus } from "@/components/chat/types";
 import { newClientMsgId } from "@/lib/chat/client-msg-id";
 import { signOut } from "@/lib/auth/client";
+import { AgentManager } from "@/components/workspace/AgentManager";
 interface Channel { id: string; name: string; description: string | null; updatedAt: string; role: string }
 interface PersistedMessage {
   id: string; channelId: string; senderId: string; clientMsgId: string | null; body: string;
-  createdAt: string; sender: { id: string; name: string | null; email: string };
+  createdAt: string; sender: { id: string; name: string | null; email: string | null; type?: "user" | "agent" };
 }
 interface PendingBody { clientMsgId: string; body: string }
 async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
@@ -23,7 +24,7 @@ async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
 function mapMessage(message: PersistedMessage, userId: string): ChatMessageView {
   return {
     id: message.id, senderId: message.senderId,
-    senderName: message.sender.name ?? message.sender.email, text: message.body,
+    senderName: message.sender.name ?? message.sender.email ?? "Unknown sender", text: message.body,
     createdAt: new Date(message.createdAt).getTime(), mine: message.senderId === userId,
     ...(message.clientMsgId ? { clientMsgId: message.clientMsgId } : {}),
   };
@@ -43,6 +44,7 @@ export function WorkspaceClient({ workspace, user }: {
   const [newName, setNewName] = useState("");
   const [creating, setCreating] = useState(false);
   const [pending, setPending] = useState<Record<string, PendingBody>>({});
+  const [showAgents, setShowAgents] = useState(false);
   const activeChannel = useMemo(() => channels.find(channel => channel.id === activeId) ?? null, [channels, activeId]);
 
   useEffect(() => {
@@ -100,7 +102,7 @@ export function WorkspaceClient({ workspace, user }: {
         method: "POST", body: JSON.stringify({ name }),
       });
       setChannels(current => [{ ...data.channel, role: "OWNER" }, ...current]);
-      setListStatus("loading"); setListStatus("loading"); setActiveId(data.channel.id); setNewName("");
+      setListStatus("loading"); setActiveId(data.channel.id); setNewName("");
     } catch (error) {
       setChannelError(error instanceof Error ? error.message : "Unable to create the project.");
     } finally { setCreating(false); }
@@ -180,6 +182,7 @@ export function WorkspaceClient({ workspace, user }: {
       <div className="flex min-h-0 flex-1">
         <aside className="flex w-64 shrink-0 flex-col border-r border-neutral-200 bg-white p-3 dark:border-neutral-800 dark:bg-neutral-900">
           <div className="mb-3 flex items-center justify-between px-1"><h1 className="text-sm font-semibold">Projects</h1><span className="text-xs text-neutral-400">{channels.length}</span></div>
+          <button onClick={() => setShowAgents(value => !value)} className={"mb-3 min-h-10 w-full rounded-lg border px-3 text-left text-sm font-semibold " + (showAgents ? "border-emerald-700 bg-emerald-50 text-emerald-900" : "border-neutral-200 hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-800")}>⚙ AI Agents</button>
           {["OWNER", "ADMIN"].includes(workspace.role) && <form onSubmit={createChannel} className="mb-4 space-y-2">
             <input value={newName} onChange={event => setNewName(event.target.value)} placeholder="New project name" maxLength={80} className="min-h-10 w-full rounded-lg border border-neutral-300 bg-transparent px-3 text-sm outline-none focus:border-emerald-700 dark:border-neutral-700" />
             <button disabled={creating || newName.trim().length < 2} className="min-h-9 w-full rounded-lg bg-emerald-700 px-3 text-xs font-semibold text-white disabled:opacity-50">{creating ? "Creating…" : "＋ Create project"}</button>
@@ -197,7 +200,7 @@ export function WorkspaceClient({ workspace, user }: {
           <p className="mt-3 border-t border-neutral-200 px-2 pt-3 text-[11px] leading-4 text-neutral-400 dark:border-neutral-800">Private project channels. Access is checked on the server.</p>
         </aside>
         <section className="flex min-w-0 flex-1 flex-col">
-          {activeChannel ? <>
+          {showAgents ? <AgentManager workspaceId={workspace.id} /> : activeChannel ? <>
             <div className="border-b border-neutral-200 bg-white px-4 py-4 sm:px-6 dark:border-neutral-800 dark:bg-neutral-900">
               <h2 className="font-semibold">{activeChannel.name}</h2><p className="mt-1 text-xs text-neutral-500">{activeChannel.description || "Project conversation"}</p>
             </div>

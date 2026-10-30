@@ -1,4 +1,4 @@
-// TRIAD Phase 3 — workspace, project-channel and persisted message domain.
+// TRIAD workspace, messaging and agent domain.
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,11 +13,14 @@ enum WorkspaceRole {
   ADMIN
   MEMBER
 }
-
 enum ChannelRole {
   OWNER
   MODERATOR
   MEMBER
+}
+enum AgentStatus {
+  ACTIVE
+  DISABLED
 }
 
 model User {
@@ -31,7 +34,7 @@ model User {
   createdChannels    Channel[]         @relation("ChannelCreator")
   channelMemberships ChannelMember[]
   messages           Message[]
-
+  createdAgents      Agent[]           @relation("AgentCreator")
   @@index([email])
 }
 
@@ -42,9 +45,9 @@ model Workspace {
   owner     User              @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   members   WorkspaceMember[]
   channels  Channel[]
+  agents    Agent[]
   createdAt DateTime          @default(now())
   updatedAt DateTime          @updatedAt
-
   @@index([createdAt])
 }
 
@@ -56,7 +59,6 @@ model WorkspaceMember {
   createdAt   DateTime      @default(now())
   workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-
   @@unique([workspaceId, userId])
   @@index([userId, role])
 }
@@ -74,9 +76,10 @@ model Channel {
   createdBy     User            @relation("ChannelCreator", fields: [createdById], references: [id], onDelete: Restrict)
   members       ChannelMember[]
   messages      Message[]
+  agentMessages AgentMessage[]
+  agentAccess   AgentChannel[]
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
-
   @@unique([workspaceId, name])
   @@index([workspaceId, archivedAt, updatedAt])
 }
@@ -89,7 +92,6 @@ model ChannelMember {
   createdAt DateTime    @default(now())
   channel   Channel     @relation(fields: [channelId], references: [id], onDelete: Cascade)
   user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-
   @@unique([channelId, userId])
   @@index([userId, role])
 }
@@ -103,9 +105,63 @@ model Message {
   createdAt   DateTime @default(now())
   channel     Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
   sender      User     @relation(fields: [senderId], references: [id], onDelete: Restrict)
-
-  // Stable client identity is reserved for Phase 4 idempotent delivery.
   @@unique([senderId, clientMsgId])
   @@index([channelId, createdAt, id])
   @@index([senderId, createdAt])
+}
+
+model Agent {
+  id          String       @id @default(cuid())
+  workspaceId String
+  createdById String       @db.VarChar(128)
+  name        String       @db.VarChar(80)
+  description String?      @db.VarChar(500)
+  status      AgentStatus  @default(ACTIVE)
+  workspace   Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy   User         @relation("AgentCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  keys        AgentApiKey[]
+  channels    AgentChannel[]
+  messages    AgentMessage[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  @@index([workspaceId, status, createdAt])
+}
+
+model AgentApiKey {
+  id         String    @id @default(cuid())
+  agentId    String
+  name       String    @db.VarChar(80)
+  prefix     String    @db.VarChar(32)
+  keyHash    String    @unique @db.VarChar(64)
+  lastUsedAt DateTime?
+  expiresAt  DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+  agent      Agent     @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  @@index([agentId, revokedAt])
+}
+
+model AgentChannel {
+  id        String   @id @default(cuid())
+  agentId   String
+  channelId String
+  createdAt DateTime @default(now())
+  agent     Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  channel   Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  @@unique([agentId, channelId])
+  @@index([channelId])
+}
+
+model AgentMessage {
+  id            String   @id @default(cuid())
+  channelId     String
+  agentId       String
+  clientMsgId   String   @db.VarChar(128)
+  body          String   @db.Text
+  createdAt     DateTime @default(now())
+  channel       Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  agent         Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  @@unique([agentId, clientMsgId])
+  @@index([channelId, createdAt, id])
+  @@index([agentId, createdAt])
 }
