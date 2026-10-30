@@ -36,7 +36,8 @@ export function AgentManager({ workspaceId }: { workspaceId: string }) {
   }, [workspaceId]);
   useEffect(() => {
     let active = true;
-    void refresh().catch(e => { if (active) setError(e instanceof Error ? e.message : "Unable to load agents."); })
+    void Promise.resolve().then(() => refresh())
+      .catch(e => { if (active) setError(e instanceof Error ? e.message : "Unable to load agents."); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [refresh]);
