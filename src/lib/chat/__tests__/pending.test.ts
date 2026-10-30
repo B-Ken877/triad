@@ -59,11 +59,30 @@ describe("pending state machine", () => {
       expect(isReconcilablePending(entry({ kind: "text", text: "" }))).toBe(false);
     });
 
-    it("attachment entries need the in-memory file ref for the retry path", () => {
+    it("attachment entries are retryable with the in-memory file", () => {
       const file = new File(["x"], "x.txt");
       expect(
         isReconcilablePending(entry({ kind: "attachment", text: "", fileRef: file })),
       ).toBe(true);
+    });
+
+    it("REGRESSION (#3): a completed upload is retryable WITHOUT the in-memory file", () => {
+      // attachmentRef means the upload already completed durably; the retry
+      // re-sends the frame against the existing attachment and must NOT be
+      // treated as unretryable merely because fileRef is absent.
+      expect(
+        isReconcilablePending(
+          entry({
+            kind: "attachment",
+            text: "",
+            fileRef: null,
+            attachmentRef: { url: "https://files.example/a/b/c", size: 123 },
+          }),
+        ),
+      ).toBe(true);
+    });
+
+    it("attachment entries with neither reference are NOT retryable", () => {
       expect(isReconcilablePending(entry({ kind: "attachment", text: "", fileRef: null }))).toBe(
         false,
       );

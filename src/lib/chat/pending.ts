@@ -70,11 +70,20 @@ export function removePending<T extends { clientMsgId: string }>(
 }
 
 /**
- * Whether the client may re-send this entry itself: text entries always are;
- * attachment entries need the in-memory file (a completed upload is referenced
- * by `attachmentRef`, but the send frame re-uses it without a second upload).
+ * Whether the client may re-send this entry itself.
+ *
+ * Retry contract for attachments (issue #3): an entry is retryable when the
+ * send frame can be reconstructed WITHOUT re-asking the user. That holds if
+ * EITHER
+ *   - `fileRef` is present (the in-memory file can be (re)used), OR
+ *   - `attachmentRef` is present (the upload already completed durably; the
+ *     retry re-sends the send frame against the existing attachment and must
+ *     NOT upload a second copy).
+ * An attachment entry with neither reference is NOT retryable: the payload is
+ * gone (e.g. after a page reload), so the UI must surface it as failed and
+ * let the user re-attach manually. Text entries need non-empty text.
  */
 export function isReconcilablePending(entry: PendingMessage): boolean {
   if (entry.kind === "text") return Boolean(entry.text);
-  return Boolean(entry.fileRef);
+  return Boolean(entry.fileRef) || Boolean(entry.attachmentRef);
 }
