@@ -29,7 +29,7 @@ export async function POST(request: Request, context: Context) {
   const input = await readJsonObject(request);
   const email = typeof input?.email === "string" ? input.email.trim().toLowerCase() : "";
   const role = input?.role === "ADMIN" ? "ADMIN" : input?.role === "MEMBER" || input?.role === undefined ? "MEMBER" : null;
-  if (!email || email.length > 320 || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email) || !role) return apiError("Provide a valid email and a MEMBER or ADMIN role.", 400);
+  if (!email || email.length > 320 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !role) return apiError("Provide a valid email and a MEMBER or ADMIN role.", 400);
   if (role === "ADMIN" && actorRole !== "OWNER") return apiError("Only the workspace owner can appoint an admin.", 403);
   try {
     const target = await db.user.findUnique({ where: { email }, select: { id: true, email: true, name: true } });
