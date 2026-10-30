@@ -69,7 +69,7 @@ export function Composer({
   return (
     <form
       onSubmit={handleSubmit}
-      className="border-t border-neutral-200 p-3 dark:border-neutral-800"
+      className="border-t border-neutral-200 px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] dark:border-neutral-800"
       aria-label="Message composer"
     >
       <div className="flex items-end gap-2">
