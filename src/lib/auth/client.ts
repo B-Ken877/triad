@@ -22,4 +22,4 @@ async function authRequest(path: string, body?: Record<string, string>): Promise
 }
 export const signInWithEmail = (email: string, password: string) => authRequest("sign-in/email", { email, password });
 export const signUpWithEmail = (name: string, email: string, password: string) => authRequest("sign-up/email", { name, email, password });
-export const signOut = () => authRequest("sign-out");
+export const signOut = () => authRequest("sign-out", {});
