@@ -3,23 +3,43 @@ import { getCurrentUser } from "@/lib/auth/server";
 import { db } from "@/lib/db";
 import { apiError, isPrismaUniqueError, readJsonObject } from "@/lib/http";
 import { getChannelAccess } from "@/lib/workspace/access";
+
 type Context = { params: Promise<{ channelId: string }> };
+type TimelineMessage = { id: string; createdAt: Date; kind: "human" | "agent" };
+
 export async function GET(_request: Request, context: Context) {
   const user = await getCurrentUser();
   if (!user) return apiError("Authentication required.", 401);
   const { channelId } = await context.params;
   if (!await getChannelAccess(channelId, user.id)) return apiError("Channel not found or access denied.", 404);
   try {
-    const messages = await db.message.findMany({
-      where: { channelId }, orderBy: [{ createdAt: "asc" }, { id: "asc" }], take: 100,
-      include: { sender: { select: { id: true, name: true, email: true } } },
+    const [humanMessages, agentMessages] = await Promise.all([
+      db.message.findMany({
+        where: { channelId }, orderBy: [{ createdAt: "asc" }, { id: "asc" }], take: 100,
+        select: { id: true, body: true, createdAt: true, sender: { select: { id: true, name: true, email: true } } },
+      }),
+      db.agentMessage.findMany({
+        where: { channelId }, orderBy: [{ createdAt: "asc" }, { id: "asc" }], take: 100,
+        select: { id: true, body: true, createdAt: true, agent: { select: { id: true, name: true } } },
+      }),
+    ]);
+    const messages: (TimelineMessage & Record<string, unknown>)[] = [
+      ...humanMessages.map(message => ({ ...message, kind: "human" as const, sender: { ...message.sender, type: "user" as const } })),
+      ...agentMessages.map(message => ({ ...message, kind: "agent" as const, sender: { ...message.agent, type: "agent" as const, email: null } })),
+    ];
+    messages.sort((a, b) => {
+      const time = a.createdAt.getTime() - b.createdAt.getTime();
+      if (time !== 0) return time;
+      if (a.kind !== b.kind) return a.kind === "human" ? -1 : 1;
+      return a.id.localeCompare(b.id);
     });
-    return NextResponse.json({ messages }, { headers: { "cache-control": "no-store" } });
+    return NextResponse.json({ messages: messages.slice(0, 100) }, { headers: { "cache-control": "no-store" } });
   } catch (error) {
     console.error("Message history failed:", error);
     return apiError("Unable to load messages.", 500);
   }
 }
+
 export async function POST(request: Request, context: Context) {
   const user = await getCurrentUser();
   if (!user) return apiError("Authentication required.", 401);
