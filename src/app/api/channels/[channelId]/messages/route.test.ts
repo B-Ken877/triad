@@ -4,13 +4,17 @@ const mocks = vi.hoisted(() => ({
   getCurrentUser: vi.fn(),
   getChannelAccess: vi.fn(),
   findMany: vi.fn(),
+  agentFindMany: vi.fn(),
   create: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/server", () => ({ getCurrentUser: mocks.getCurrentUser }));
 vi.mock("@/lib/workspace/access", () => ({ getChannelAccess: mocks.getChannelAccess }));
 vi.mock("@/lib/db", () => ({
-  db: { message: { findMany: mocks.findMany, create: mocks.create } },
+  db: {
+    message: { findMany: mocks.findMany, create: mocks.create },
+    agentMessage: { findMany: mocks.agentFindMany },
+  },
 }));
 
 import { GET, POST } from "./route";
@@ -24,6 +28,7 @@ describe("channel messages API authorization and persistence", () => {
     mocks.getCurrentUser.mockResolvedValue(user);
     mocks.getChannelAccess.mockResolvedValue({ id: "channel-1" });
     mocks.findMany.mockResolvedValue([]);
+    mocks.agentFindMany.mockResolvedValue([]);
   });
 
   it("rejects unauthenticated history requests", async () => {
