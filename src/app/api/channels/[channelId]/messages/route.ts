@@ -25,7 +25,7 @@ export async function GET(_request: Request, context: Context) {
     ]);
     const messages: (TimelineMessage & Record<string, unknown>)[] = [
       ...humanMessages.map(message => ({ ...message, kind: "human" as const, sender: { ...message.sender, type: "user" as const } })),
-      ...agentMessages.map(message => ({ ...message, kind: "agent" as const, sender: { ...message.agent, type: "agent" as const, email: null } })),
+      ...agentMessages.map(message => ({ ...message, senderId: `agent:${message.agent.id}`, kind: "agent" as const, sender: { ...message.agent, type: "agent" as const, email: null } })),
     ];
     messages.sort((a, b) => {
       const time = a.createdAt.getTime() - b.createdAt.getTime();
