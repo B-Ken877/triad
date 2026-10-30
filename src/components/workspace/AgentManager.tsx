@@ -33,13 +33,13 @@ export function AgentManager({ workspaceId }: { workspaceId: string }) {
       api<{ channels: Channel[] }>("/api/workspaces/" + workspaceId + "/channels"),
     ]);
     setAgents(agentData.agents); setChannels(channelData.channels);
-  }
+  }, [workspaceId]);
   useEffect(() => {
     let active = true;
     void refresh().catch(e => { if (active) setError(e instanceof Error ? e.message : "Unable to load agents."); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [workspaceId]);
+  }, [refresh]);
 
   async function createAgent(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setError(""); setNewKey("");
