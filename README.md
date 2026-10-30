@@ -26,6 +26,28 @@ The implementation plan and acceptance criteria are tracked in [Issue #1](https:
 6. Realtime transport is an optimization; durable API retrieval remains the source of truth.
 7. Founder retains final authority over consequential decisions and production changes.
 
+## Getting started
+
+Requirements: Node.js >= 20.9 (22 LTS recommended), npm.
+
+```bash
+npm install
+cp .env.example .env.local   # fill in local values; never commit .env.local
+npm run verify               # lint + typecheck + unit tests + production build
+```
+
+Individual gates:
+
+```bash
+npm run lint        # ESLint (Next.js core-web-vitals + TypeScript rules)
+npm run typecheck   # tsc --noEmit (strict)
+npm run test        # Vitest unit tests
+npm run build       # next build
+```
+
+`docs/ARCHITECTURE.md` documents the system design, reliability model and phase map. CI runs all
+gates on every push and pull request.
+
 ## Planned stack
 
 - Next.js + TypeScript

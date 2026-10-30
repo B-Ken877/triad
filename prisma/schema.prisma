@@ -1,0 +1,16 @@
+// TRIAD — Prisma schema (foundation).
+//
+// Datasource targets Neon PostgreSQL in production. No models are defined yet:
+// the workspace/channel/message/task/agent data model is designed and added in
+// the Workspace MVP phase (issue #1, phase 3) together with its migrations.
+// This file establishes the toolchain, datasource and generator so gates and
+// local setup work from the first commit.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}

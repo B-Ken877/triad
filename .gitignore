@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+
+# Next.js build output
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+
+# Testing
+coverage/
+
+# Environment — never commit real credentials or connection strings
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Vercel
+.vercel
+
+# OS / editor
+.DS_Store
+*.pem
+.idea/
+.vscode/
+
+# Prisma
+prisma/*.db
+prisma/migrations/dev.db*
