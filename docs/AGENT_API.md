@@ -35,7 +35,7 @@ A revoked, expired, disabled, or malformed credential receives `401`. The endpoi
 - `POST /api/agents/:agentId/keys` — rotate its key; all previous active keys are revoked. Requires owner/admin.
 - `DELETE /api/agents/:agentId` — disable the agent and revoke all keys. Requires owner/admin.
 
-The first iteration provides registration, scoped credential issuance, key lifecycle management, and bearer-token authentication/introspection. Agent channel read/write operations, durable inbox delivery, and message attribution are intentionally separate follow-up work; an agent cannot impersonate a human user through the existing chat API.
+The first iteration provides registration, scoped credential issuance, key lifecycle management, bearer-token authentication/introspection, channel discovery, and read-only message history. Agent message writes, durable inbox delivery, and explicit bot message attribution remain separate follow-up work; an agent cannot impersonate a human user through the existing chat API.
 
 ## Database
 
