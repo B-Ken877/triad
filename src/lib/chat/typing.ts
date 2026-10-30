@@ -73,12 +73,19 @@ export class TypingTracker {
 
   /** Record an inbound typing activity. Returns true when state changed. */
   onActivity(event: TypingEvent): boolean {
-    if (!Number.isFinite(event.at)) return false;
-    if (event.at < Math.max(this.disconnectFloor, this.states.get(event.participantId) ?? -Infinity))
-      return false;
+    if (!event.participantId.trim() || !Number.isFinite(event.at)) return false;
+
     const previous = this.states.get(event.participantId);
+    const minimumAcceptedAt = Math.max(
+      this.disconnectFloor,
+      previous ?? Number.NEGATIVE_INFINITY,
+    );
+
+    // Equal timestamps are duplicates; older timestamps are stale.
+    if (event.at <= minimumAcceptedAt) return false;
+
     this.states.set(event.participantId, event.at);
-    return previous === undefined;
+    return true;
   }
 
   /** Drop expired states; returns surviving participants in insertion order. */
