@@ -22,11 +22,24 @@ describe("outbound throttling", () => {
 });
 
 describe("TypingTracker", () => {
-  it("tracks new participants and deduplicates repeated activities", () => {
+  it("reports new and advancing activity while rejecting duplicate and stale events", () => {
     const t = new TypingTracker({ now: () => 0 });
+
     expect(t.onActivity({ participantId: "a", at: 100 })).toBe(true);
+    expect(t.onActivity({ participantId: "a", at: 200 })).toBe(true);
+    expect(t.active()).toEqual([{ participantId: "a", since: 200 }]);
+
+    // Equal timestamps are duplicate events and must not report a state change.
     expect(t.onActivity({ participantId: "a", at: 200 })).toBe(false);
-    expect(t.active().map((s) => s.participantId)).toEqual(["a"]);
+    // Older timestamps must not regress the accepted state.
+    expect(t.onActivity({ participantId: "a", at: 150 })).toBe(false);
+    expect(t.active()).toEqual([{ participantId: "a", since: 200 }]);
+  });
+
+  it("rejects empty participant identifiers", () => {
+    const t = new TypingTracker({ now: () => 0 });
+    expect(t.onActivity({ participantId: "  ", at: 100 })).toBe(false);
+    expect(t.active()).toEqual([]);
   });
 
   it("ignores stale events that would regress a participant state", () => {
