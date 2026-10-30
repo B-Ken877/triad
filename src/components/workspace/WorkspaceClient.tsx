@@ -10,7 +10,7 @@ import { AgentManager } from "@/components/workspace/AgentManager";
 interface Channel { id: string; name: string; description: string | null; updatedAt: string; role: string }
 interface PersistedMessage {
   id: string; channelId: string; senderId: string; clientMsgId: string | null; body: string;
-  createdAt: string; sender: { id: string; name: string | null; email: string };
+  createdAt: string; sender: { id: string; name: string | null; email: string | null; type?: "user" | "agent" };
 }
 interface PendingBody { clientMsgId: string; body: string }
 async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
@@ -24,7 +24,7 @@ async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
 function mapMessage(message: PersistedMessage, userId: string): ChatMessageView {
   return {
     id: message.id, senderId: message.senderId,
-    senderName: message.sender.name ?? message.sender.email, text: message.body,
+    senderName: message.sender.name ?? message.sender.email ?? "Unknown sender", text: message.body,
     createdAt: new Date(message.createdAt).getTime(), mine: message.senderId === userId,
     ...(message.clientMsgId ? { clientMsgId: message.clientMsgId } : {}),
   };
