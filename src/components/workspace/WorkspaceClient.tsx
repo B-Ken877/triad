@@ -6,6 +6,7 @@ import { MessageList } from "@/components/chat/MessageList";
 import type { ChatMessageView, ChatListStatus } from "@/components/chat/types";
 import { newClientMsgId } from "@/lib/chat/client-msg-id";
 import { signOut } from "@/lib/auth/client";
+import { AgentManager } from "@/components/workspace/AgentManager";
 interface Channel { id: string; name: string; description: string | null; updatedAt: string; role: string }
 interface PersistedMessage {
   id: string; channelId: string; senderId: string; clientMsgId: string | null; body: string;
@@ -43,6 +44,7 @@ export function WorkspaceClient({ workspace, user }: {
   const [newName, setNewName] = useState("");
   const [creating, setCreating] = useState(false);
   const [pending, setPending] = useState<Record<string, PendingBody>>({});
+  const [showAgents, setShowAgents] = useState(false);
   const activeChannel = useMemo(() => channels.find(channel => channel.id === activeId) ?? null, [channels, activeId]);
 
   useEffect(() => {
@@ -180,6 +182,7 @@ export function WorkspaceClient({ workspace, user }: {
       <div className="flex min-h-0 flex-1">
         <aside className="flex w-64 shrink-0 flex-col border-r border-neutral-200 bg-white p-3 dark:border-neutral-800 dark:bg-neutral-900">
           <div className="mb-3 flex items-center justify-between px-1"><h1 className="text-sm font-semibold">Projects</h1><span className="text-xs text-neutral-400">{channels.length}</span></div>
+          <button onClick={() => setShowAgents(value => !value)} className={"mb-3 min-h-10 w-full rounded-lg border px-3 text-left text-sm font-semibold " + (showAgents ? "border-emerald-700 bg-emerald-50 text-emerald-900" : "border-neutral-200 hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-800")}>⚙ AI Agents</button>
           {["OWNER", "ADMIN"].includes(workspace.role) && <form onSubmit={createChannel} className="mb-4 space-y-2">
             <input value={newName} onChange={event => setNewName(event.target.value)} placeholder="New project name" maxLength={80} className="min-h-10 w-full rounded-lg border border-neutral-300 bg-transparent px-3 text-sm outline-none focus:border-emerald-700 dark:border-neutral-700" />
             <button disabled={creating || newName.trim().length < 2} className="min-h-9 w-full rounded-lg bg-emerald-700 px-3 text-xs font-semibold text-white disabled:opacity-50">{creating ? "Creating…" : "＋ Create project"}</button>
