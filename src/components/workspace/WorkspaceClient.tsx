@@ -200,7 +200,7 @@ export function WorkspaceClient({ workspace, user }: {
           <p className="mt-3 border-t border-neutral-200 px-2 pt-3 text-[11px] leading-4 text-neutral-400 dark:border-neutral-800">Private project channels. Access is checked on the server.</p>
         </aside>
         <section className="flex min-w-0 flex-1 flex-col">
-          {activeChannel ? <>
+          {showAgents ? <AgentManager workspaceId={workspace.id} /> : activeChannel ? <>
             <div className="border-b border-neutral-200 bg-white px-4 py-4 sm:px-6 dark:border-neutral-800 dark:bg-neutral-900">
               <h2 className="font-semibold">{activeChannel.name}</h2><p className="mt-1 text-xs text-neutral-500">{activeChannel.description || "Project conversation"}</p>
             </div>
