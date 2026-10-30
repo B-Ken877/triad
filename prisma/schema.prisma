@@ -1,11 +1,4 @@
-// TRIAD — Prisma schema (foundation).
-//
-// Datasource targets Neon PostgreSQL in production. No models are defined yet:
-// the workspace/channel/message/task/agent data model is designed and added in
-// the Workspace MVP phase (issue #1, phase 3) together with its migrations.
-// This file establishes the toolchain, datasource and generator so gates and
-// local setup work from the first commit.
-
+// TRIAD Phase 3 — workspace, project-channel and persisted message domain.
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,4 +6,106 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+enum WorkspaceRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum ChannelRole {
+  OWNER
+  MODERATOR
+  MEMBER
+}
+
+model User {
+  id                 String            @id @db.VarChar(128)
+  email              String            @unique @db.VarChar(320)
+  name               String?           @db.VarChar(160)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  ownedWorkspaces    Workspace[]       @relation("WorkspaceOwner")
+  workspaceMembers   WorkspaceMember[]
+  createdChannels    Channel[]         @relation("ChannelCreator")
+  channelMemberships ChannelMember[]
+  messages           Message[]
+
+  @@index([email])
+}
+
+model Workspace {
+  id        String            @id @default(cuid())
+  name      String            @db.VarChar(100)
+  ownerId   String            @unique @db.VarChar(128)
+  owner     User              @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members   WorkspaceMember[]
+  channels  Channel[]
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  @@index([createdAt])
+}
+
+model WorkspaceMember {
+  id          String        @id @default(cuid())
+  workspaceId String
+  userId      String        @db.VarChar(128)
+  role        WorkspaceRole @default(MEMBER)
+  createdAt   DateTime      @default(now())
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@index([userId, role])
+}
+
+model Channel {
+  id            String          @id @default(cuid())
+  workspaceId   String
+  name          String          @db.VarChar(80)
+  description   String?         @db.VarChar(500)
+  instructions  String?         @db.Text
+  pinnedContext String?         @db.Text
+  archivedAt    DateTime?
+  createdById   String          @db.VarChar(128)
+  workspace     Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy     User            @relation("ChannelCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  members       ChannelMember[]
+  messages      Message[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@unique([workspaceId, name])
+  @@index([workspaceId, archivedAt, updatedAt])
+}
+
+model ChannelMember {
+  id        String      @id @default(cuid())
+  channelId String
+  userId    String      @db.VarChar(128)
+  role      ChannelRole @default(MEMBER)
+  createdAt DateTime    @default(now())
+  channel   Channel     @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([channelId, userId])
+  @@index([userId, role])
+}
+
+model Message {
+  id          String   @id @default(cuid())
+  channelId   String
+  senderId    String   @db.VarChar(128)
+  clientMsgId String?  @db.VarChar(128)
+  body        String   @db.Text
+  createdAt   DateTime @default(now())
+  channel     Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  sender      User     @relation(fields: [senderId], references: [id], onDelete: Restrict)
+
+  // Stable client identity is reserved for Phase 4 idempotent delivery.
+  @@unique([senderId, clientMsgId])
+  @@index([channelId, createdAt, id])
+  @@index([senderId, createdAt])
 }

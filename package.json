@@ -15,7 +15,9 @@
     "test:coverage": "vitest run --coverage",
     "db:generate": "prisma generate",
     "db:push": "prisma schema push",
-    "verify": "npm run lint && npm run typecheck && npm run test && npm run build"
+    "verify": "npm run lint && npm run typecheck && npm run test && npm run build",
+    "db:migrate:dev": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy"
   },
   "dependencies": {
     "@prisma/client": "^6.16.2",
