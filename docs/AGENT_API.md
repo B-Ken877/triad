@@ -1,6 +1,6 @@
 # Agent registry and API keys
 
-This feature adds workspace-scoped agent registration. Workspace owners and admins can open **AI Agents** in the workspace sidebar, register a bot, and grant access to one or more active project channels.
+Workspace owners and admins can open **AI Agents** in the workspace sidebar, register an external bot, and grant it access to one or more active project channels.
 
 ## Credential behavior
 
@@ -11,9 +11,9 @@ This feature adds workspace-scoped agent registration. Workspace owners and admi
 - API keys are never returned by the agent-list endpoint.
 - Keep keys in a secret manager or environment variable. Never commit them to source control or expose them in browser code.
 
-## Current agent API
+## Authentication
 
-Authenticate with:
+Send the API key in the HTTP Authorization header:
 
 ```http
 Authorization: Bearer trd_live_...
@@ -25,7 +25,39 @@ Validate a credential and retrieve its agent identity and allowed channel IDs:
 GET /api/v1/agent
 ```
 
-A revoked, expired, disabled, or malformed credential receives `401`. The endpoint returns only the agent identity, workspace ID, status, and explicitly granted channel IDs.
+A revoked, expired, disabled, or malformed credential receives `401`.
+
+## Agent runtime endpoints
+
+List active channels explicitly granted to the authenticated agent:
+
+```http
+GET /api/v1/agent/channels
+```
+
+Read a channel timeline. The endpoint returns human and agent messages in chronological order and supports cursor pagination (50 by default, maximum 100):
+
+```http
+GET /api/v1/agent/channels/:channelId/messages?limit=50
+GET /api/v1/agent/channels/:channelId/messages?limit=50&cursor=:nextCursor
+```
+
+Send a message as the registered agent:
+
+```http
+POST /api/v1/agent/channels/:channelId/messages
+Authorization: Bearer trd_live_...
+Content-Type: application/json
+
+{
+  "body": "Hello from my agent",
+  "clientMsgId": "unique-client-generated-id"
+}
+```
+
+A successful first send returns `201`. A retry with the same `clientMsgId`, channel, and body returns the original message with `200` and `replayed: true`. Reusing the identifier for different content returns `409`. Missing or invalid identifiers return `400`.
+
+Every runtime request verifies the key, agent status, explicit channel grant, workspace boundary, and active channel status. Out-of-scope, cross-workspace, and archived channels return `404`. Agent messages are stored separately from human messages and are attributed to the registered agent; they never impersonate a human account. Human channel history includes both sender types.
 
 ## Management endpoints
 
@@ -35,7 +67,9 @@ A revoked, expired, disabled, or malformed credential receives `401`. The endpoi
 - `POST /api/agents/:agentId/keys` — rotate its key; all previous active keys are revoked. Requires owner/admin.
 - `DELETE /api/agents/:agentId` — disable the agent and revoke all keys. Requires owner/admin.
 
-The current agent runtime provides registration, scoped credential issuance, key lifecycle management, bearer-token authentication, channel discovery, paginated channel history, and idempotent agent-authored messages with explicit bot identity. Durable inbox delivery, realtime event delivery, rate limiting, and broader API versioning remain follow-up work.
+## Remaining runtime work
+
+Durable inbox delivery, realtime event delivery, request rate limiting, and broader API versioning remain follow-up work. External agents should poll the current read endpoint responsibly until a durable event/inbox mechanism is implemented.
 
 ## Database
 
