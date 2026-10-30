@@ -45,6 +45,7 @@ export function WorkspaceClient({ workspace, user }: {
   const [creating, setCreating] = useState(false);
   const [pending, setPending] = useState<Record<string, PendingBody>>({});
   const [showAgents, setShowAgents] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const activeChannel = useMemo(() => channels.find(channel => channel.id === activeId) ?? null, [channels, activeId]);
 
   useEffect(() => {
@@ -174,15 +175,19 @@ export function WorkspaceClient({ workspace, user }: {
   }
 
   return (
-    <main className="flex min-h-screen flex-col bg-neutral-50 text-neutral-950 dark:bg-neutral-950 dark:text-neutral-100">
-      <header className="flex h-16 items-center justify-between border-b border-neutral-200 bg-white px-4 sm:px-6 dark:border-neutral-800 dark:bg-neutral-900">
-        <div className="min-w-0"><p className="text-sm font-bold tracking-[0.2em] text-emerald-700">TRIAD</p><p className="truncate text-xs text-neutral-500">{workspace.name}</p></div>
+    <main className="flex h-dvh min-h-0 flex-col overflow-hidden bg-neutral-50 text-neutral-950 dark:bg-neutral-950 dark:text-neutral-100">
+      <header className="z-50 flex h-16 shrink-0 items-center justify-between border-b border-neutral-200 bg-white px-3 sm:px-6 dark:border-neutral-800 dark:bg-neutral-900">
+        <div className="flex min-w-0 items-center gap-3">
+          <button type="button" onClick={() => setMobileNavOpen(value => !value)} aria-label={mobileNavOpen ? "Close project navigation" : "Open project navigation"} aria-expanded={mobileNavOpen} aria-controls="workspace-project-sidebar" className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-neutral-200 text-lg text-neutral-700 hover:bg-neutral-100 focus-visible:outline-2 focus-visible:outline-emerald-700 md:hidden dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800">{mobileNavOpen ? "×" : "☰"}</button>
+          <div className="min-w-0"><p className="text-sm font-bold tracking-[0.2em] text-emerald-700">TRIAD</p><p className="truncate text-xs text-neutral-500">{workspace.name}</p></div>
+        </div>
         <div className="flex items-center gap-3"><span className="hidden max-w-48 truncate text-sm text-neutral-500 sm:block">{user.name ?? user.email}</span><button onClick={handleSignOut} className="rounded-lg border border-neutral-300 px-3 py-2 text-xs font-semibold hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-800">Sign out</button></div>
       </header>
-      <div className="flex min-h-0 flex-1">
-        <aside className="flex w-64 shrink-0 flex-col border-r border-neutral-200 bg-white p-3 dark:border-neutral-800 dark:bg-neutral-900">
+      <div className="relative flex min-h-0 flex-1">
+        {mobileNavOpen && <button type="button" aria-label="Close project navigation" onClick={() => setMobileNavOpen(false)} className="absolute inset-0 z-30 bg-neutral-950/40 md:hidden" />}
+        <aside id="workspace-project-sidebar" className={(mobileNavOpen ? "flex" : "hidden") + " fixed inset-y-16 left-0 z-40 w-[min(20rem,calc(100vw-3rem))] shrink-0 flex-col border-r border-neutral-200 bg-white p-3 shadow-xl md:static md:z-auto md:flex md:w-64 md:shadow-none dark:border-neutral-800 dark:bg-neutral-900">
           <div className="mb-3 flex items-center justify-between px-1"><h1 className="text-sm font-semibold">Projects</h1><span className="text-xs text-neutral-400">{channels.length}</span></div>
-          <button onClick={() => setShowAgents(value => !value)} className={"mb-3 min-h-10 w-full rounded-lg border px-3 text-left text-sm font-semibold " + (showAgents ? "border-emerald-700 bg-emerald-50 text-emerald-900" : "border-neutral-200 hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-800")}>⚙ AI Agents</button>
+          <button onClick={() => { setShowAgents(value => !value); setMobileNavOpen(false); }} className={"mb-3 min-h-10 w-full rounded-lg border px-3 text-left text-sm font-semibold " + (showAgents ? "border-emerald-700 bg-emerald-50 text-emerald-900" : "border-neutral-200 hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-800")}>⚙ AI Agents</button>
           {["OWNER", "ADMIN"].includes(workspace.role) && <form onSubmit={createChannel} className="mb-4 space-y-2">
             <input value={newName} onChange={event => setNewName(event.target.value)} placeholder="New project name" maxLength={80} className="min-h-10 w-full rounded-lg border border-neutral-300 bg-transparent px-3 text-sm outline-none focus:border-emerald-700 dark:border-neutral-700" />
             <button disabled={creating || newName.trim().length < 2} className="min-h-9 w-full rounded-lg bg-emerald-700 px-3 text-xs font-semibold text-white disabled:opacity-50">{creating ? "Creating…" : "＋ Create project"}</button>
@@ -192,16 +197,16 @@ export function WorkspaceClient({ workspace, user }: {
             {loadingChannels ? <p className="px-2 py-3 text-xs text-neutral-500">Loading projects…</p> :
               channels.length === 0 ? <p className="px-2 py-3 text-xs leading-5 text-neutral-500">No projects yet. Create one to start a conversation.</p> :
               channels.map(channel => <div key={channel.id} className={"group flex items-center rounded-lg " + (activeId === channel.id ? "bg-emerald-50 text-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-100" : "hover:bg-neutral-100 dark:hover:bg-neutral-800")}>
-                <button onClick={() => { if (activeId === channel.id) reloadMessages(channel.id); else { setListStatus("loading"); setActiveId(channel.id); } }} className="min-w-0 flex-1 truncate px-3 py-2.5 text-left text-sm font-medium"># {channel.name}</button>
+                <button onClick={() => { setMobileNavOpen(false); if (activeId === channel.id) reloadMessages(channel.id); else { setListStatus("loading"); setActiveId(channel.id); } }} className="min-w-0 flex-1 truncate px-3 py-2.5 text-left text-sm font-medium"># {channel.name}</button>
                 {["OWNER", "MODERATOR"].includes(channel.role) && <button title={"Rename " + channel.name} aria-label={"Rename " + channel.name} onClick={() => void renameChannel(channel)} className="rounded px-1.5 py-1 text-xs text-neutral-400 hover:bg-neutral-200 hover:text-neutral-800 dark:hover:bg-neutral-700">✎</button>}
                 {channel.role === "OWNER" && <button title={"Archive " + channel.name} aria-label={"Archive " + channel.name} onClick={() => void archiveChannel(channel)} className="mr-1 rounded px-1.5 py-1 text-xs text-neutral-400 hover:bg-neutral-200 hover:text-neutral-800 dark:hover:bg-neutral-700">…</button>}
               </div>)}
           </nav>
           <p className="mt-3 border-t border-neutral-200 px-2 pt-3 text-[11px] leading-4 text-neutral-400 dark:border-neutral-800">Private project channels. Access is checked on the server.</p>
         </aside>
-        <section className="flex min-w-0 flex-1 flex-col">
+        <section className="flex min-h-0 min-w-0 flex-1 flex-col">
           {showAgents ? <AgentManager workspaceId={workspace.id} /> : activeChannel ? <>
-            <div className="border-b border-neutral-200 bg-white px-4 py-4 sm:px-6 dark:border-neutral-800 dark:bg-neutral-900">
+            <div className="shrink-0 border-b border-neutral-200 bg-white px-4 py-3 sm:px-6 sm:py-4 dark:border-neutral-800 dark:bg-neutral-900">
               <h2 className="font-semibold">{activeChannel.name}</h2><p className="mt-1 text-xs text-neutral-500">{activeChannel.description || "Project conversation"}</p>
             </div>
             <MessageList messages={messages} status={listStatus} connection="online"
