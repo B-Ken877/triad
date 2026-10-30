@@ -44,32 +44,42 @@ export function WorkspaceClient({ workspace, user }: {
   const [creating, setCreating] = useState(false);
   const [pending, setPending] = useState<Record<string, PendingBody>>({});
   const activeChannel = useMemo(() => channels.find(channel => channel.id === activeId) ?? null, [channels, activeId]);
+
   const loadChannels = useCallback(async () => {
-    setLoadingChannels(true); setChannelError("");
     try {
       const data = await requestJson<{ channels: Channel[] }>("/api/workspaces/" + workspace.id + "/channels");
       setChannels(data.channels);
-      setActiveId(current => data.channels.some(channel => channel.id === current) ? current : data.channels[0]?.id ?? "");
+      if (!data.channels.some(channel => channel.id === activeId)) {
+        setListStatus("loading");
+        setActiveId(data.channels[0]?.id ?? "");
+      }
+      setChannelError("");
     } catch (error) {
       setChannelError(error instanceof Error ? error.message : "Unable to load channels.");
     } finally { setLoadingChannels(false); }
-  }, [workspace.id]);
-  const loadMessages = useCallback(async (channelId: string) => {
-    setListStatus("loading"); setSendError("");
+  }, [workspace.id, activeId]);
+
+  const fetchMessages = useCallback(async (channelId: string) => {
     try {
       const data = await requestJson<{ messages: PersistedMessage[] }>("/api/channels/" + channelId + "/messages");
       setMessages(data.messages.map(message => mapMessage(message, user.id)));
-      setListStatus("ready"); setPending({});
+      setListStatus("ready"); setPending({}); setSendError("");
     } catch (error) {
       setListStatus("error");
       setSendError(error instanceof Error ? error.message : "Unable to load messages.");
     }
   }, [user.id]);
+
+  const reloadMessages = useCallback((channelId: string) => {
+    setListStatus("loading"); setSendError("");
+    void fetchMessages(channelId);
+  }, [fetchMessages]);
+
   useEffect(() => { void loadChannels(); }, [loadChannels]);
   useEffect(() => {
-    if (activeId) void loadMessages(activeId);
-    else { setMessages([]); setListStatus("ready"); }
-  }, [activeId, loadMessages]);
+    if (activeId) void fetchMessages(activeId);
+  }, [activeId, fetchMessages]);
+
   async function createChannel(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const name = newName.trim();
@@ -80,11 +90,25 @@ export function WorkspaceClient({ workspace, user }: {
         method: "POST", body: JSON.stringify({ name }),
       });
       setChannels(current => [data.channel, ...current]);
-      setActiveId(data.channel.id); setNewName("");
+      setListStatus("loading"); setActiveId(data.channel.id); setNewName("");
     } catch (error) {
       setChannelError(error instanceof Error ? error.message : "Unable to create the project.");
     } finally { setCreating(false); }
   }
+
+  async function renameChannel(channel: Channel) {
+    const nextName = window.prompt("Rename project", channel.name)?.trim();
+    if (!nextName || nextName === channel.name) return;
+    try {
+      const data = await requestJson<{ channel: Channel }>("/api/channels/" + channel.id, {
+        method: "PATCH", body: JSON.stringify({ name: nextName }),
+      });
+      setChannels(current => current.map(item => item.id === channel.id ? { ...item, ...data.channel } : item));
+    } catch (error) {
+      setChannelError(error instanceof Error ? error.message : "Unable to rename the project.");
+    }
+  }
+
   async function sendMessage(body: string, retryId?: string) {
     if (!activeId) return;
     const clientMsgId = retryId ?? newClientMsgId();
@@ -119,21 +143,24 @@ export function WorkspaceClient({ workspace, user }: {
       setSendError(error instanceof Error ? error.message : "Message was not confirmed. You can retry it.");
     }
   }
+
   async function archiveChannel(channel: Channel) {
     if (!window.confirm("Archive “" + channel.name + "”? Its messages will be retained.")) return;
     try {
       await requestJson("/api/channels/" + channel.id, { method: "PATCH", body: JSON.stringify({ archive: true }) });
       setChannels(current => current.filter(item => item.id !== channel.id));
-      setActiveId(current => current === channel.id ? "" : current);
+      if (activeId === channel.id) { setActiveId(""); setMessages([]); setListStatus("ready"); }
     } catch (error) {
       setChannelError(error instanceof Error ? error.message : "Unable to archive the project.");
     }
   }
+
   async function handleSignOut() {
     const result = await signOut();
     if (!result.ok) { setChannelError(result.message ?? "Could not sign out."); return; }
     router.replace("/auth/sign-in"); router.refresh();
   }
+
   return (
     <main className="flex min-h-screen flex-col bg-neutral-50 text-neutral-950 dark:bg-neutral-950 dark:text-neutral-100">
       <header className="flex h-16 items-center justify-between border-b border-neutral-200 bg-white px-4 sm:px-6 dark:border-neutral-800 dark:bg-neutral-900">
@@ -152,8 +179,9 @@ export function WorkspaceClient({ workspace, user }: {
             {loadingChannels ? <p className="px-2 py-3 text-xs text-neutral-500">Loading projects…</p> :
               channels.length === 0 ? <p className="px-2 py-3 text-xs leading-5 text-neutral-500">No projects yet. Create one to start a conversation.</p> :
               channels.map(channel => <div key={channel.id} className={"group flex items-center rounded-lg " + (activeId === channel.id ? "bg-emerald-50 text-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-100" : "hover:bg-neutral-100 dark:hover:bg-neutral-800")}>
-                <button onClick={() => setActiveId(channel.id)} className="min-w-0 flex-1 truncate px-3 py-2.5 text-left text-sm font-medium"># {channel.name}</button>
-                <button title={"Archive " + channel.name} aria-label={"Archive " + channel.name} onClick={() => void archiveChannel(channel)} className="mr-1 rounded px-2 py-1 text-xs text-neutral-400 opacity-0 hover:bg-neutral-200 hover:text-neutral-800 focus:opacity-100 group-hover:opacity-100 dark:hover:bg-neutral-700">…</button>
+                <button onClick={() => { if (activeId === channel.id) reloadMessages(channel.id); else { setListStatus("loading"); setActiveId(channel.id); } }} className="min-w-0 flex-1 truncate px-3 py-2.5 text-left text-sm font-medium"># {channel.name}</button>
+                <button title={"Rename " + channel.name} aria-label={"Rename " + channel.name} onClick={() => void renameChannel(channel)} className="rounded px-1.5 py-1 text-xs text-neutral-400 hover:bg-neutral-200 hover:text-neutral-800 dark:hover:bg-neutral-700">✎</button>
+                <button title={"Archive " + channel.name} aria-label={"Archive " + channel.name} onClick={() => void archiveChannel(channel)} className="mr-1 rounded px-1.5 py-1 text-xs text-neutral-400 hover:bg-neutral-200 hover:text-neutral-800 dark:hover:bg-neutral-700">…</button>
               </div>)}
           </nav>
           <p className="mt-3 border-t border-neutral-200 px-2 pt-3 text-[11px] leading-4 text-neutral-400 dark:border-neutral-800">Private project channels. Access is checked on the server.</p>
@@ -167,7 +195,7 @@ export function WorkspaceClient({ workspace, user }: {
               emptyMessage="This project is ready. Send the first message to get the conversation started."
               formatDayLabel={date => new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(date)}
               formatTime={timestamp => new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(timestamp)}
-              onErrorRetry={() => void loadMessages(activeId)}
+              onErrorRetry={() => reloadMessages(activeId)}
               onRetryMessage={clientMsgId => { const entry = pending[clientMsgId]; if (entry) void sendMessage(entry.body, clientMsgId); }} />
             <Composer onSend={body => sendMessage(body)} disabled={listStatus !== "ready"}
               disabledReason="Choose an active project to send messages." errorMessage={sendError || undefined} />

@@ -6,14 +6,15 @@ export const dynamic = "force-dynamic";
 export default async function WorkspacePage() {
   const user = await getCurrentUser();
   if (!user) redirect("/auth/sign-in");
+  let workspace;
   try {
-    const workspace = await getOrCreateWorkspace(user);
-    return <WorkspaceClient workspace={{ id: workspace.id, name: workspace.name }} user={{ id: user.id, name: user.name, email: user.email }} />;
+    workspace = await getOrCreateWorkspace(user);
   } catch (error) {
     console.error("Workspace initialization failed:", error);
-    return <main className="flex min-h-screen items-center justify-center px-6"><section className="max-w-md text-center">
-      <h1 className="text-xl font-semibold">Workspace unavailable</h1>
-      <p className="mt-2 text-sm text-neutral-500">TRIAD could not initialize your workspace. Check the database configuration and try again.</p>
-    </section></main>;
   }
+  if (!workspace) return <main className="flex min-h-screen items-center justify-center px-6"><section className="max-w-md text-center">
+    <h1 className="text-xl font-semibold">Workspace unavailable</h1>
+    <p className="mt-2 text-sm text-neutral-500">TRIAD could not initialize your workspace. Check the database configuration and try again.</p>
+  </section></main>;
+  return <WorkspaceClient workspace={{ id: workspace.id, name: workspace.name }} user={{ id: user.id, name: user.name, email: user.email }} />;
 }
